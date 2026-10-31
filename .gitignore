@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+diagnostico*.txt
+free-my-mac-*.json
+free-my-mac-*.jsonl
+
+# Registros internos de desenvolvimento e dados locais
+/specs/
+.DS_Store
+.env
+.env.*
+*.log
+*.pem
+*.key
+*.p12
+*.pfx
+.venv/
+.idea/
+.vscode/
+
+# Backups de configurações podem conter credenciais
+*.bak
+*.backup
+*config*.json

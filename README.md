@@ -1,234 +1,246 @@
 # Free My Mac
 
-Ferramenta de auditoria de ambiente dev para macOS, com interface fzf, inventário
-por ecossistema, análise de projetos e planos de limpeza selecionados manualmente.
-Requer Python 3.9+ e fzf. O modo interativo requer fzf no PATH. Dependências só são instaladas por uma ação explícita.
+A macOS developer environment auditing and maintenance tool with an fzf interface,
+inventory by ecosystem, project analysis, and manually selected cleanup plans.
+Requires Python 3.9+ and fzf. Interactive mode requires fzf on your PATH.
+Dependencies are installed only through an explicit action.
 
-## Começar pela manutenção, sem esperar uma auditoria completa
+## Start maintenance without waiting for a full audit
 
-Execute **sem sudo**, na pasta do projeto:
+Run **without sudo**, from the project directory:
 
 ```sh
 sh free-my-mac.sh --maintenance
 ```
 
-O menu fzf mostra ações nativas por ferramenta. Escolher uma ação exibe suas
-consequências e solicita confirmação antes de alterar dados. Ferramentas ausentes
-aparecem como ausentes. A saída dos comandos permanece visível, com indicação de
-tempo a cada cinco segundos e limite de 30 minutos. Ctrl-C encerra o grupo de
-processos; interrupção pode deixar alterações parciais, registradas em JSON.
+The fzf menu lists native maintenance actions by tool. Selecting an action shows
+its consequences and asks for confirmation before changing data. Missing tools
+are marked as unavailable. Command output remains visible, with an elapsed-time
+message every five seconds and a 30-minute timeout. Ctrl-C terminates the process
+group; interruption may leave partial changes, recorded in JSON logs.
 
-1. Caches: npm, pip, uv, pnpm, Yarn, Conda, Composer, NuGet e Go.
-2. Homebrew: cleanup, prévia de autoremove e desinstalação individual de fórmulas/casks.
-3. Docker: imagens sem containers associados, cache de build ou containers parados.
-   Não executa prune de volumes. Imagens locais e camadas graváveis podem ser perdidas.
-4. Versões: pyenv, Conda/Miniforge, nvm, fnm, asdf, mise e rustup. A seleção é manual;
-   os requisitos encontrados nos projetos são exibidos antes da confirmação.
-5. Android: pacotes SDK, imagens e AVDs; Apple: dispositivos desligados e runtimes.
-6. Cowork: desativação da preferência e remoção da VM, com Claude Desktop fechado.
-7. Apple Intelligence: instalar a dependência, consultar, remover modelos ou reativar.
+1. Caches: npm, pip, uv, pnpm, Yarn, Conda, Composer, NuGet, and Go.
+2. Homebrew: cleanup, autoremove preview, and individual formula/cask uninstallation.
+3. Docker: images without associated containers, build cache, or stopped containers.
+   Volumes are not pruned. Local images and writable container layers may be lost.
+4. Versions: pyenv, Conda/Miniforge, nvm, fnm, asdf, mise, and rustup. Selection is
+   manual; requirements found in projects are displayed before confirmation.
+5. Android: SDK packages, images, and AVDs; Apple: shut-down devices and runtimes.
+6. Cowork: disable the preference and remove the VM with Claude Desktop closed.
+7. Apple Intelligence: install the dependency, inspect models, remove them, or re-enable features.
 
-O fluxo individual de versões também abre diretamente:
+You can also open individual version management directly:
 
 ```sh
 sh free-my-mac.sh --maintenance versions --projects ~/Projects
 ```
 
-Não é possível provar que uma versão ou app não é usado apenas pela data dos arquivos.
-Alguns gestores excluem versões ativas/default da seleção; isso não cobre todos os
-projetos, aliases ou ambientes externos. Casks com instaladores externos e destinos
-não verificáveis exigem seu próprio desinstalador. Scripts/plugins de gerenciadores
-instalados são executados pelo próprio gerenciador, não auditados por este projeto.
+File timestamps alone cannot prove that a version or app is unused. Some managers
+exclude active/default versions from selection; this does not cover every project,
+alias, or external environment. Casks with external installers and unverifiable
+removal targets require their own uninstallers. Installed manager scripts/plugins
+are executed by their manager and are not audited by this project.
 
-## Remover Apple Intelligence
+## Remove Apple Intelligence
 
-O módulo usa a CLI externa [RemoveMacAI](https://github.com/omlahore/RemoveMacAI),
-sem incorporar seu código privado nem instalar nada durante a auditoria:
+This module uses the external [RemoveMacAI](https://github.com/omlahore/RemoveMacAI)
+CLI. It does not embed that tool's private Apple API implementation or install
+anything during an audit:
 
 ```sh
-# Se ainda não estiver instalada: mostra a ação, sem instalar
+# If not installed: preview the action without installing
 sh free-my-mac.sh --maintenance ai-install
-# Instala via Homebrew, após confirmação
+# Install through Homebrew after confirmation
 sh free-my-mac.sh --maintenance ai-install --apply
-# Consulta modelos
+# Inspect models
 sh free-my-mac.sh --maintenance ai-status
-# Apresenta a ação de remoção
+# Preview the removal action
 sh free-my-mac.sh --maintenance ai-remove
-# Executa a remoção, após confirmação
+# Run removal after confirmation
 sh free-my-mac.sh --maintenance ai-remove --apply
 ```
 
-A CLI solicita remoção dos modelos pelo serviço Apple. O perfil de bloqueio de
-downloads exige aprovação nos Ajustes do Sistema. A liberação dos arquivos pode
-ser assíncrona: execute `ai-status` novamente para verificar. O retorno zero do
-comando não é garantia de uma quantidade de GB recuperada. SIP desligado não é
-pré-requisito desse mecanismo. Não são apagados modelos de Ollama/Hugging Face.
-`--maintenance ai-restore --apply` reativa os recursos; novos downloads podem ser necessários.
-Compatibilidade depende da versão instalada do RemoveMacAI e do macOS; o projeto
-externo usa interfaces privadas da Apple. A instalação via Homebrew não fixa versão.
+The CLI requests model removal through Apple's asset service. The profile that
+blocks downloads requires approval in System Settings. File reclamation may be
+asynchronous: run `ai-status` again to check. A zero exit code does not guarantee
+any particular amount of reclaimed space. Disabling SIP is not a prerequisite
+for this mechanism. Ollama/Hugging Face models are not deleted.
+`--maintenance ai-restore --apply` re-enables features; new downloads may be needed.
+Compatibility depends on the installed RemoveMacAI and macOS versions; the external
+tool uses private Apple interfaces. Installation through Homebrew does not pin a version.
 
-## Remoção individual avançada
+## Advanced individual removal
 
-Na auditoria, a opção avançada permite escolher um alvo por vez. Também existe CLI:
+The advanced audit option lets you select one target at a time. A CLI is also available:
 
 ```sh
-sh free-my-mac.sh --remove-path "$HOME/Library/Application Support/AppRemovido"
-sh free-my-mac.sh --remove-path "$HOME/Library/Application Support/AppRemovido" --apply
+sh free-my-mac.sh --remove-path "$HOME/Library/Application Support/RemovedApp"
+sh free-my-mac.sh --remove-path "$HOME/Library/Application Support/RemovedApp" --apply
 ```
 
-O catálogo inclui filhos diretos de Application Support/Caches/Preferences,
-instalações conhecidas de Conda, versões específicas de Python/.NET, fontes em
-`/Library/Fonts`, logs antigos em `/Library/Logs` e uma lista de apps Apple opcionais.
-Herd pode ser selecionado explicitamente: isso inclui configurações e possíveis
-dados locais, não apenas PHP. Não há exclusão genérica de `/opt` ou `/usr/local`.
+The catalog includes direct children of Application Support/Caches/Preferences,
+known Conda installations, specific Python/.NET versions, fonts in `/Library/Fonts`,
+old logs in `/Library/Logs`, and a list of optional Apple apps.
+Herd can be selected explicitly: this includes settings and potentially local data,
+not just PHP. There is no blanket deletion of `/opt` or `/usr/local`.
 
-O executor exige digitar o nome do alvo, valida identidade/conteúdo, verifica
-arquivos abertos via lsof, recusa links na raiz e conteúdo protegido. Ausência de
-processos visíveis não prova que nenhum outro usuário/processo utilizará o alvo.
-Resíduos são selecionados por você; ausência do aplicativo não prova que seus dados
-são descartáveis. A exclusão é permanente.
+The executor requires typing the target name, validates its identity/content,
+checks open files through lsof, and rejects symlinks in the target path and
+protected contents. The absence of visible processes does not prove that no other
+user or process will use the target. You select leftovers manually; an absent
+application does not prove its data is disposable. Deletion is permanent.
 
-Apps como Maps/Music só podem ser removidos se o volume já permitir escrita.
-O script verifica essa condição e informa o bloqueio. **Desligar SIP, sozinho,
-não torna o volume selado gravável.** Não há remount, alteração de authenticated
-root ou criação de snapshot de boot. Isso também significa que o script não
-promete remover apps do volume selado numa instalação padrão do macOS.
+Apps such as Maps/Music can only be removed if the volume is already writable.
+The script checks this condition and reports the blocker. **Disabling SIP alone
+does not make the sealed system volume writable.** The script does not remount
+volumes, change authenticated root, or create boot snapshots. It therefore does
+not promise to remove apps from the sealed volume on a standard macOS installation.
 
-Quando necessário, apenas o executor de alvo individual solicita sudo; a interface
-e os gestores continuam no usuário normal. Há uma segunda confirmação no helper
-privilegiado. Registros privilegiados ficam em `/var/log/free-my-mac-remove-*.jsonl`.
+When necessary, only the individual-target executor requests sudo; the interface
+and package managers continue running as the normal user. The privileged helper
+asks for a second confirmation. Its logs are saved to
+`/var/log/free-my-mac-remove-*.jsonl`.
 
-Snapshots, banco de unified logging e atualizações protegidas do macOS ficam fora
-da remoção genérica. Limpeza de disco não garante ganho de CPU/RAM; não alteramos
-permissões globais, swap, Spotlight ou serviços em massa.
+Snapshots, the unified logging database, and protected macOS updates are excluded
+from generic removal. Disk cleanup does not guarantee CPU/RAM improvements; this
+tool does not change global permissions, swap, Spotlight, or services in bulk.
 
-## Abrir a auditoria
+## Open the audit
 
 ```sh
-cd /caminho/para/free-my-mac
+cd /path/to/free-my-mac
 sh free-my-mac.sh --system --projects ~/Projects --days 60
 ```
 
-A auditoria não apaga arquivos. `--system` inclui /opt, /usr/local, fontes,
-serviços e apps do sistema. `--days` define a janela de atividade; 60 é um padrão
-ajustável. Use o caminho real dos seus projetos (~/projects também pode existir).
+The audit does not delete files. `--system` includes /opt, /usr/local, fonts,
+services, and system apps. `--days` defines the activity window; 60 is an adjustable
+default. Use your actual projects directory (~/projects may also exist).
 
-Adicione `--measure` para medir espaço alocado. Sem essa opção o inventário é
-mais rápido e o tamanho aparece como indisponível. Pastas têm limite de 30 segundos
-por medição. Milhares de entradas podem levar vários minutos. Os tamanhos de
-pais/filhos não devem ser somados; APFS/clones e discos esparsos não permitem
-inferir espaço recuperável pela soma dos tamanhos.
+Add `--measure` to measure allocated space. Without it, inventory is faster and
+sizes are shown as unavailable. Each directory measurement has a 30-second limit.
+Thousands of entries may take several minutes. Do not add parent and child sizes
+together; APFS/clones and sparse disks prevent estimating reclaimable space by
+simply summing sizes.
 
-## Interface fzf (padrão)
+## fzf interface (default)
 
-A auditoria mostra etapa/item atual, tempo total e tempo na etapa. Ctrl-C cancela
-ela e suas consultas em um processo separado. Não há percentual fictício: a
-quantidade de arquivos é descoberta durante a leitura. Ao terminar, mostra
-LEITURA CONCLUÍDA e abre o menu. Ao salvar um plano, a validação também mostra
-progresso e pode ser cancelada.
+The audit shows the current stage/item, total elapsed time, and time spent in the
+stage. Ctrl-C cancels the audit and its queries in a separate process. No artificial
+percentage is displayed: files are discovered during scanning. On completion, it
+shows `LEITURA CONCLUÍDA` (scan complete) and opens the menu. Plan validation also
+shows progress and can be canceled.
 
-1. **Explorar todos os achados:** busca por texto e prévia dos detalhes à direita;
-   Enter ou Esc volta ao menu. Esta lista não permite marcar exclusões.
-2. **Selecionar ações elegíveis por categoria:** escolha uma categoria ou Todas.
-   Digite para filtrar; Tab marca; Ctrl-A marca todos os resultados filtrados;
-   Ctrl-D desmarca os resultados filtrados; Enter adiciona ao conjunto selecionado.
-   Sem marcações, Enter adiciona a linha atual, conforme o comportamento do fzf.
-3. **Revisar seleção atual:** examinar os itens acumulados, sem executar nada.
-4. **Salvar plano selecionado:** valida e grava JSON no diretório atual.
-5. **Salvar relatório completo:** grava JSON no diretório atual.
-6. **Desmarcar tudo** ou **Sair**. Esc no menu também sai.
-7. **Manutenção:** abre as ações nativas acima.
-8. **Executar seleção atual:** salva o plano, revalida e pede confirmação.
-9. **Remoção individual avançada:** abre os alvos explicitamente suportados.
+The application interface and confirmation phrases are currently in Portuguese.
+The descriptions below explain the menu actions in English.
 
-Selecionar novamente acumula itens; use Desmarcar tudo para reiniciar a seleção.
-O seletor inclui caches, node_modules elegíveis, builds reconhecidos, fontes do usuário, instaladores antigos e logs antigos. Builds exigem seleção explícita e não seguem o filtro de idade dos node_modules. Salvar não executa limpeza. Relatórios/planos privados
-(0600) não sobrescrevem arquivos existentes. Os dados temporários da interface
-ficam em diretório privado e são descartados ao sair; exportações são mantidas.
+1. **Explore all findings:** text search with a detail preview on the right;
+   Enter or Esc returns to the menu. This list does not select items for deletion.
+2. **Select eligible actions by category:** choose a category or all categories.
+   Type to filter; Tab selects; Ctrl-A selects all filtered results; Ctrl-D clears
+   filtered selections; Enter adds them to the current selection. If nothing is
+   marked, Enter adds the current row, following fzf behavior.
+3. **Review current selection:** inspect accumulated items without executing anything.
+4. **Save selected plan:** validate and write JSON to the current directory.
+5. **Save full report:** write JSON to the current directory.
+6. **Clear selection** or **Exit**. Esc at the menu also exits.
+7. **Maintenance:** open the native actions described above.
+8. **Execute current selection:** save the plan, revalidate, and ask for confirmation.
+9. **Advanced individual removal:** show explicitly supported targets.
 
-A interface anterior continua acessível com `--ui curses`; `--browse` mantém o
-navegador de diretórios. O modo fzf exige um terminal interativo, sem sudo.
+Further selections accumulate items; clear the selection to start over.
+The selector includes caches, eligible node_modules, recognized builds, user fonts,
+old installers, and old logs. Builds require explicit selection and do not use the
+node_modules age filter. Saving does not execute cleanup. Private reports/plans
+(mode 0600) never overwrite existing files. Temporary interface data is stored in
+a private directory and discarded on exit; exported files are retained.
 
-## Proteções
+The previous interface is still available with `--ui curses`; `--browse` keeps the
+directory browser. fzf mode requires an interactive terminal, without sudo.
 
-```sh
-sh free-my-mac.sh --system --protect ~/Projects/meu-agente/artifacts --protect ~/modelos
-```
-
-`--protect` é repetível. As raízes .claude, .codex, .cursor, .ollama,
-.cache/huggingface e sessões locais conhecidas do Claude são protegidas por padrão.
-Nomes contendo sketchpad também são protegidos. Adicione as raízes reais dos seus
-artefatos: não existe identificação universal de arquivos gerados por agentes.
-Proteções bloqueiam a exclusão de ancestrais que contenham dados protegidos.
-
-## Simular e executar um plano
-
-Feche os gerenciadores e processos dos projetos selecionados. Uma execução exige
-as mesmas opções --projects, --days e --protect usadas ao criar o plano.
+## Protections
 
 ```sh
-sh free-my-mac.sh --plan free-my-mac-plan-NUMERO.json --days 60
+sh free-my-mac.sh --system --protect ~/Projects/my-agent/artifacts --protect ~/models
 ```
 
-O comando acima apenas valida/simula. Para executar, por iniciativa sua:
+`--protect` can be repeated. The .claude, .codex, .cursor, .ollama,
+.cache/huggingface roots and known local Claude sessions are protected by default.
+Names containing sketchpad are also protected. Add your actual artifact roots:
+there is no universal way to identify agent-generated files. Protections also
+block deletion of ancestor directories containing protected data.
+
+## Preview and execute a plan
+
+Close the managers and processes associated with the selected projects. Execution
+requires the same --projects, --days, and --protect options used to create the plan.
 
 ```sh
-sh free-my-mac.sh --plan free-my-mac-plan-NUMERO.json --days 60 --apply
+sh free-my-mac.sh --plan free-my-mac-plan-NUMBER.json --days 60
 ```
 
-Será necessário digitar `APAGAR ITENS` em um terminal interativo. O executor não
-aceita root. Valida alvos, propriedade, proteções, identidade e metadados da árvore;
-se houver mudanças desde o plano, exige gerar outro. Não aceita comandos arbitrários
-no JSON. Gera registro JSONL de início, resultado, espaço livre e falhas parciais.
-A exclusão é permanente, sem promessa de rollback. Downloads/reinstalação podem
-ser necessários; alterações manuais dentro de node_modules serão perdidas.
-Não execute com processos escrevendo nos alvos: a validação não é um bloqueio
-transacional do filesystem nem um detector completo de processos ativos.
+The command above only validates/previews. To execute explicitly:
 
-node_modules só vira candidato com fontes antigas, lockfile e inspeção sem erro.
-Dependências conhecidamente versionadas são bloqueadas. Isso é um indício de
-inatividade, não prova de desuso: confira se o projeto é necessário offline e se
-as dependências podem ser recuperadas. Monorepos e workspaces exigem revisão.
+```sh
+sh free-my-mac.sh --plan free-my-mac-plan-NUMBER.json --days 60 --apply
+```
 
-## Manutenção explícita do Cowork
+You must type the exact phrase `APAGAR ITENS` in an interactive terminal. The
+executor does not accept root. It validates targets, ownership, protections,
+identity, and tree metadata; changes since planning require a new plan. It does
+not accept arbitrary commands in the JSON. A JSONL log records the start, result,
+free space, and partial failures. Deletion is permanent, without a rollback
+promise. Downloads/reinstallation may be required; manual changes inside
+node_modules will be lost. Do not run while processes are writing to the targets:
+validation is neither a transactional filesystem lock nor a complete detector of
+active processes.
+
+node_modules only becomes a candidate when source files are old, a lockfile exists,
+and inspection completes without errors. Dependencies known to be tracked in Git
+are blocked. This indicates inactivity, not proven disuse: check whether the
+project is needed offline and whether dependencies can be restored. Monorepos
+and workspaces require review.
+
+## Explicit Cowork maintenance
 
 ```sh
 sh free-my-mac.sh --cowork status
 sh free-my-mac.sh --cowork disable
 ```
 
-Status e simulação não alteram nada. Para aplicar após fechar Claude Desktop:
-`sh free-my-mac.sh --cowork disable --apply`. Há confirmação interativa, backup
-privado do JSON e remoção restrita a vm_bundles; sessões e MCP são preservados.
-O comportamento da preferência local depende da versão. Veja o
-[guia compartilhável](docs/guia-cowork.md), que explica limites, reversão e validação.
+Status and preview do not change anything. To apply after closing Claude Desktop,
+run `sh free-my-mac.sh --cowork disable --apply`. This requires interactive
+confirmation, creates a private JSON backup, and restricts removal to vm_bundles;
+sessions and MCP settings are preserved. The local preference's behavior depends
+on the version. See the [Cowork guide (Portuguese)](docs/guia-cowork.md) for
+limitations, reversal, and validation.
 
-## Relatórios e crescimento
+## Reports and storage growth
 
 ```sh
 sh free-my-mac.sh --report --system --no-probes
-sh free-my-mac.sh --json --system --measure --save inventario-1.json
-sh free-my-mac.sh --json --system --measure --save inventario-2.json
-sh free-my-mac.sh --compare inventario-1.json inventario-2.json
+sh free-my-mac.sh --json --system --measure --save inventory-1.json
+sh free-my-mac.sh --json --system --measure --save inventory-2.json
+sh free-my-mac.sh --compare inventory-1.json inventory-2.json
 ```
 
-`--no-probes` pula consultas aos gerenciadores e Docker, mas continua lendo metadados
-locais de apps pelo plutil do macOS. A comparação considera apenas caminhos medidos
-nos dois relatórios; valores desconhecidos não viram zero.
-Docker remoto/overrides são bloqueados; não iniciamos daemons. Um socket Unix pode ser um encaminhamento local; confira o endpoint mostrado antes de confirmar qualquer prune.
+`--no-probes` skips manager and Docker queries but still reads local app metadata
+through macOS plutil. Comparison includes only paths measured in both reports;
+unknown values are not treated as zero. Remote Docker endpoints and overrides are
+blocked; daemons are not started. A Unix socket may forward to another host;
+check the displayed endpoint before confirming any prune operation.
 
-O navegador antigo continua disponível:
+The legacy browser remains available:
 
 ```sh
 sh free-my-mac.sh --browse --path ~/Library
 ```
 
-## Testes
+## Tests
 
 ```sh
 python3 -m unittest discover -s tests -v
 sh -n free-my-mac.sh
 ```
 
-Exclusões nos testes usam exclusivamente diretórios temporários. Não é necessário
-sudo. Não foi executada limpeza nos dados reais do Mac durante desenvolvimento.
+Deletion tests use temporary directories exclusively. No sudo is required.
+No real user data was cleaned during development.

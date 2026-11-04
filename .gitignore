@@ -4,7 +4,7 @@ diagnostico*.txt
 free-my-mac-*.json
 free-my-mac-*.jsonl
 
-# Registros internos de desenvolvimento e dados locais
+# Internal development records and local data
 /specs/
 .DS_Store
 .env
@@ -18,7 +18,7 @@ free-my-mac-*.jsonl
 .idea/
 .vscode/
 
-# Backups de configurações podem conter credenciais
+# Configuration backups may contain credentials
 *.bak
 *.backup
 *config*.json

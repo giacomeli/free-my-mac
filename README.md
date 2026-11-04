@@ -1,246 +1,304 @@
+<p align="center">
+  <img src="promo-assets/free-my-mac-readme-banner-1280x640.png" alt="Free My Mac: a guided cleanup for your developer Mac" width="860">
+</p>
+
+<p align="center">
+  A step-by-step cleanup and tuning tool for a macOS developer machine.<br>
+  It explains every change, shows the exact commands and asks before running each one.
+</p>
+
 # Free My Mac
 
-A macOS developer environment auditing and maintenance tool with an fzf interface,
-inventory by ecosystem, project analysis, and manually selected cleanup plans.
-Requires Python 3.9+ and fzf. Interactive mode requires fzf on your PATH.
-Dependencies are installed only through an explicit action.
+Free My Mac moves every language runtime to a single version manager
+([mise](https://mise.jdx.dev), with [uv](https://docs.astral.sh/uv/) for Python packages and
+rustup for Rust). Then it removes what other managers, installers and SDKs left behind: conda,
+pyenv, fnm, Herd, Docker Desktop, .NET and Mono, iOS simulators, loose JDKs, pkg installers, orphan
+launch agents, caches and build artifacts.
 
-## Start maintenance without waiting for a full audit
+<p align="center">
+  <img src="promo-assets/free-my-mac-macos-cleanup-tui-1280x1004.png" alt="Free My Mac terminal interface: cleanup steps grouped by area, each with its detected state and the space it frees" width="860">
+</p>
 
-Run **without sudo**, from the project directory:
+- **Detects, then proposes.** Each step reads the real state of the machine. A step comes back as
+  pending if what it removed comes back.
+- **Explains before acting.** What the step removes, why, the consequences, how to undo it, and
+  the exact commands it will run.
+- **Asks every time.** A single-key `y/N` prompt, default no. Right before running, the step
+  detects again and acts only on the selected items that still exist.
+- **You pick the items.** Steps are split into items you can check or uncheck; optional ones
+  come unchecked.
+- **Keeps a record.** Every run goes to a history file, and backups go to a dated folder.
+- **Nothing to install.** Python 3.9 standard library only, on the system `/usr/bin/python3`.
+- **Tweaks mode.** A second catalog of reversible macOS debloat and tuning steps (`sh tweaks.sh`).
 
-```sh
-sh free-my-mac.sh --maintenance
-```
+> [!NOTE]
+> The catalog was written for one developer machine and its move to mise. On another Mac, steps
+> whose targets are missing show as `Already clean` and do nothing. Nothing runs without
+> your confirmation either way. To get the most out of it, fork it and adapt the catalog; names that
+> only make sense on your machine go in a local file (see
+> [Machine-specific settings](#machine-specific-settings)).
 
-The fzf menu lists native maintenance actions by tool. Selecting an action shows
-its consequences and asks for confirmation before changing data. Missing tools
-are marked as unavailable. Command output remains visible, with an elapsed-time
-message every five seconds and a 30-minute timeout. Ctrl-C terminates the process
-group; interruption may leave partial changes, recorded in JSON logs.
-
-1. Caches: npm, pip, uv, pnpm, Yarn, Conda, Composer, NuGet, and Go.
-2. Homebrew: cleanup, autoremove preview, and individual formula/cask uninstallation.
-3. Docker: images without associated containers, build cache, or stopped containers.
-   Volumes are not pruned. Local images and writable container layers may be lost.
-4. Versions: pyenv, Conda/Miniforge, nvm, fnm, asdf, mise, and rustup. Selection is
-   manual; requirements found in projects are displayed before confirmation.
-5. Android: SDK packages, images, and AVDs; Apple: shut-down devices and runtimes.
-6. Cowork: disable the preference and remove the VM with Claude Desktop closed.
-7. Apple Intelligence: install the dependency, inspect models, remove them, or re-enable features.
-
-You can also open individual version management directly:
-
-```sh
-sh free-my-mac.sh --maintenance versions --projects ~/Projects
-```
-
-File timestamps alone cannot prove that a version or app is unused. Some managers
-exclude active/default versions from selection; this does not cover every project,
-alias, or external environment. Casks with external installers and unverifiable
-removal targets require their own uninstallers. Installed manager scripts/plugins
-are executed by their manager and are not audited by this project.
-
-## Remove Apple Intelligence
-
-This module uses the external [RemoveMacAI](https://github.com/omlahore/RemoveMacAI)
-CLI. It does not embed that tool's private Apple API implementation or install
-anything during an audit:
+## Quick start
 
 ```sh
-# If not installed: preview the action without installing
-sh free-my-mac.sh --maintenance ai-install
-# Install through Homebrew after confirmation
-sh free-my-mac.sh --maintenance ai-install --apply
-# Inspect models
-sh free-my-mac.sh --maintenance ai-status
-# Preview the removal action
-sh free-my-mac.sh --maintenance ai-remove
-# Run removal after confirmation
-sh free-my-mac.sh --maintenance ai-remove --apply
+git clone https://github.com/giacomeli/free-my-mac.git
+cd free-my-mac
+sh free-my-mac.sh --list   # read-only: the state of every step
+sh free-my-mac.sh          # interactive interface
 ```
 
-The CLI requests model removal through Apple's asset service. The profile that
-blocks downloads requires approval in System Settings. File reclamation may be
-asynchronous: run `ai-status` again to check. A zero exit code does not guarantee
-any particular amount of reclaimed space. Disabling SIP is not a prerequisite
-for this mechanism. Ollama/Hugging Face models are not deleted.
-`--maintenance ai-restore --apply` re-enables features; new downloads may be needed.
-Compatibility depends on the installed RemoveMacAI and macOS versions; the external
-tool uses private Apple interfaces. Installation through Homebrew does not pin a version.
+## Requirements
 
-## Advanced individual removal
+- macOS with the Command Line Tools (`/usr/bin/python3`, 3.9 or newer). No third-party Python
+  packages: the tool never removes the interpreter it runs on.
+- Run as your user, **never with sudo**. Steps that touch system paths ask for the sudo password
+  once, in the terminal, when they run.
 
-The advanced audit option lets you select one target at a time. A CLI is also available:
+## Usage
 
 ```sh
-sh free-my-mac.sh --remove-path "$HOME/Library/Application Support/RemovedApp"
-sh free-my-mac.sh --remove-path "$HOME/Library/Application Support/RemovedApp" --apply
+sh free-my-mac.sh                    # interactive interface (curses)
+sh free-my-mac.sh --list             # state of every step, read-only
+sh free-my-mac.sh --show conda-remove  # details and commands of one step, read-only
+sh free-my-mac.sh --run conda-remove   # run one step after y/N confirmation
+sh free-my-mac.sh --history          # past runs
+sh free-my-mac.sh --projects ~/code  # projects folder (default: ~/Projects)
 ```
 
-The catalog includes direct children of Application Support/Caches/Preferences,
-known Conda installations, specific Python/.NET versions, fonts in `/Library/Fonts`,
-old logs in `/Library/Logs`, and a list of optional Apple apps.
-Herd can be selected explicitly: this includes settings and potentially local data,
-not just PHP. There is no blanket deletion of `/opt` or `/usr/local`.
+`--list`, `--show` and `--history` never write anything.
 
-The executor requires typing the target name, validates its identity/content,
-checks open files through lsof, and rejects symlinks in the target path and
-protected contents. The absence of visible processes does not prove that no other
-user or process will use the target. You select leftovers manually; an absent
-application does not prove its data is disposable. Deletion is permanent.
-
-Apps such as Maps/Music can only be removed if the volume is already writable.
-The script checks this condition and reports the blocker. **Disabling SIP alone
-does not make the sealed system volume writable.** The script does not remount
-volumes, change authenticated root, or create boot snapshots. It therefore does
-not promise to remove apps from the sealed volume on a standard macOS installation.
-
-When necessary, only the individual-target executor requests sudo; the interface
-and package managers continue running as the normal user. The privileged helper
-asks for a second confirmation. Its logs are saved to
-`/var/log/free-my-mac-remove-*.jsonl`.
-
-Snapshots, the unified logging database, and protected macOS updates are excluded
-from generic removal. Disk cleanup does not guarantee CPU/RAM improvements; this
-tool does not change global permissions, swap, Spotlight, or services in bulk.
-
-## Open the audit
+### Tweaks mode
 
 ```sh
-cd /path/to/free-my-mac
-sh free-my-mac.sh --system --projects ~/Projects --days 60
+sh tweaks.sh                         # interactive interface with the tweaks catalog
+sh tweaks.sh --list                  # same options as free-my-mac.sh (--show, --run, --history)
 ```
 
-The audit does not delete files. `--system` includes /opt, /usr/local, fonts,
-services, and system apps. `--days` defines the activity window; 60 is an adjustable
-default. Use your actual projects directory (~/projects may also exist).
+<p align="center">
+  <img src="promo-assets/free-my-mac-macos-tweaks-tui-1280x812.png" alt="Tweaks mode: privacy, interface, background items, animations, firewall and energy steps" width="860">
+</p>
 
-Add `--measure` to measure allocated space. Without it, inventory is faster and
-sizes are shown as unavailable. Each directory measurement has a 30-second limit.
-Thousands of entries may take several minutes. Do not add parent and child sizes
-together; APFS/clones and sparse disks prevent estimating reclaimable space by
-simply summing sizes.
+`tweaks.sh` runs `free-my-mac.sh --tweaks`: the same interface, confirmation, history and backup,
+with a separate catalog of reversible debloat and tuning steps. Everything
+[RemoveMacAI](https://github.com/omlahore/RemoveMacAI) already covers (privacy, Finder, Dock and
+windows, typing, background items of other apps) is delegated to it with `removemacai apply`,
+`undo` and `background`; free-my-mac only implements what it does not cover. Optional items come
+unchecked; only clear recommendations come checked. The tool deliberately does not disable SIP,
+Gatekeeper, FileVault or the firewall, does not `launchctl disable` Apple services, and does not
+run placebo tweaks such as `sudo purge`.
 
-## fzf interface (default)
+| Group | Step | What it does |
+| --- | --- | --- |
+| RemoveMacAI | `rmai-privacy`, `rmai-annoyances`, `rmai-apps`, `rmai-finder`, `rmai-windows`, `rmai-typing` | Lists the RemoveMacAI tweaks of each group that are not applied yet (its `recommended` preset checked) and applies the selected ones; privacy tweaks go through its configuration profile, which you approve in System Settings |
+| Background items | `background-items` | Background items of other apps, each with what stops working; turns off the selected ones with `removemacai background off`. Your own agents (`own_agent_prefixes` in `local.json`), the Warsaw bank security module and XQuartz are left out |
+| Animations, firewall and energy | `ui-speed` | Shorter Dock, Mission Control, window and Quick Look animations; fixed Spaces order (all optional) |
+| Animations, firewall and energy | `firewall-stealth` | Firewall stealth mode |
+| Animations, firewall and energy | `battery-powernap` | Power Nap off on battery (optional) |
 
-The audit shows the current stage/item, total elapsed time, and time spent in the
-stage. Ctrl-C cancels the audit and its queries in a separate process. No artificial
-percentage is displayed: files are discovered during scanning. On completion, it
-shows `LEITURA CONCLUÍDA` (scan complete) and opens the menu. Plan validation also
-shows progress and can be canceled.
+### Machine-specific settings
 
-The application interface and confirmation phrases are currently in Portuguese.
-The descriptions below explain the menu actions in English.
+Names that only make sense on one machine stay out of the repository, in an optional
+`~/.config/free-my-mac/local.json`:
 
-1. **Explore all findings:** text search with a detail preview on the right;
-   Enter or Esc returns to the menu. This list does not select items for deletion.
-2. **Select eligible actions by category:** choose a category or all categories.
-   Type to filter; Tab selects; Ctrl-A selects all filtered results; Ctrl-D clears
-   filtered selections; Enter adds them to the current selection. If nothing is
-   marked, Enter adds the current row, following fzf behavior.
-3. **Review current selection:** inspect accumulated items without executing anything.
-4. **Save selected plan:** validate and write JSON to the current directory.
-5. **Save full report:** write JSON to the current directory.
-6. **Clear selection** or **Exit**. Esc at the menu also exits.
-7. **Maintenance:** open the native actions described above.
-8. **Execute current selection:** save the plan, revalidate, and ask for confirmation.
-9. **Advanced individual removal:** show explicitly supported targets.
+```json
+{
+  "conda_projects": {"my_env": "group/my-project"},
+  "uv_tools": {"some-cli": "git+https://github.com/owner/some-cli"},
+  "own_agent_prefixes": ["dev.example."]
+}
+```
 
-Further selections accumulate items; clear the selection to start over.
-The selector includes caches, eligible node_modules, recognized builds, user fonts,
-old installers, and old logs. Builds require explicit selection and do not use the
-node_modules age filter. Saving does not execute cleanup. Private reports/plans
-(mode 0600) never overwrite existing files. Temporary interface data is stored in
-a private directory and discarded on exit; exported files are retained.
+- `conda_projects`: conda environment -> project folder (relative to the projects folder) that gets
+  a `.venv` with the same packages (`conda-migrate`).
+- `uv_tools`: conda environment or pipx venv -> source for `uv tool install` that replaces it.
+- `own_agent_prefixes`: label prefixes of your own launch agents, left out of `background-items`.
 
-The previous interface is still available with `--ui curses`; `--browse` keeps the
-directory browser. fzf mode requires an interactive terminal, without sudo.
+Without the file, `conda-migrate` only exports the environments to the backup and your agents
+show up unchecked.
 
-## Protections
+### Keys
+
+| Screen | Keys |
+| --- | --- |
+| List | arrows or `j`/`k` move, `Enter` opens details, `i` ignores or restores a step, `h` history, `r` detects again, `?` help, `q` quits |
+| Details | arrows move between items, `space` toggles an item, `a` selects all, `n` selects none, `x` runs (asks `y/N`), `Esc` goes back |
+
+Execution leaves the curses screen and runs in the normal terminal: output is live, sudo asks
+for the password there, and `Ctrl-C` interrupts. `Enter` returns to the list with the state
+detected again.
+
+## How a step works
+
+Opening a step shows what it does, why, the consequences, how to undo it, its items and the exact
+commands. `space` toggles an item and `x` runs the selection after the `y/N` prompt.
+
+<p align="center">
+  <img src="promo-assets/free-my-mac-cleanup-step-details-1280x956.png" alt="Details of a cleanup step: explanation, selectable items with sizes and the exact commands it will run" width="860">
+</p>
+
+```mermaid
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#E3F2FD','primaryTextColor':'#0D47A1','primaryBorderColor':'#1976D2','lineColor':'#546E7A'}}}%%
+flowchart LR
+    accTitle: Lifecycle of a step
+    accDescr: Detection produces items, dependencies may block, the user confirms, the runner revalidates and records the result.
+
+    D["detect()<br/>real machine state"] --> S{"requires<br/>satisfied?"}
+    S -->|"no"| B["Blocked<br/>names the missing step"]
+    S -->|"yes"| R["Details<br/>items, commands"]
+    R -->|"x, then y"| V["Revalidate<br/>detect again"]
+    V --> E["Run commands<br/>sudo -v once"]
+    E --> H["history.jsonl<br/>Done dd/mm hh:mm"]
+    R -->|"x, then anything else"| C["Cancelled<br/>nothing changed"]
+```
+
+| State | Meaning |
+| --- | --- |
+| Pending | There is something to do |
+| Partial | Part of it was done (for example, one venv failed and was rolled back) |
+| Done Nov 01 02:12 | Nothing left to do and the run is in the history |
+| Already clean | Nothing to do and this tool never ran it (`Already applied` in tweaks mode) |
+| Blocked | Depends on another step, which the panel names |
+| Ignored | Skipped with `i`; dependent steps are released |
+| Available | Recurring action with no detectable state |
+| Detection failed | The message says why |
+
+The state comes from detection, not from the history: if something comes back (for example, a
+`brew upgrade` links a Python again), the step shows as pending again.
+
+## Catalog
+
+<details>
+<summary>All 56 cleanup steps, by group</summary>
+
+| Group | Step | What it does | Requires |
+| --- | --- | --- | --- |
+| Preparation | `backup` | Backup of shell files, `/etc/hosts`, `/etc/paths.d`, Brewfile, installer receipts, conda environments and venv package lists | - |
+| mise | `mise-config` | Updates mise, enables `.nvmrc`/`.python-version`, disables the PHP plugin, `python.uv_venv_auto` | - |
+| mise | `mise-python` | Installs the Pythons the projects use (3.11, 3.12 global, 3.14.6) | `mise-config` |
+| mise | `mise-node` | Global Node LTS, pnpm 10 and Yarn 1 | `mise-config` |
+| mise | `mise-projects` | Installs the versions pinned in each project | `mise-config`, `mise-python`, `mise-node` |
+| Python | `venvs` | Rebuilds venvs whose base is not a mise Python, with the same packages and rollback | `mise-python`, `backup` |
+| Python | `conda-migrate` | Moves the conda environments in use to uv (project `.venv`, `uv tool`); if the environment is already gone, rebuilds the `.venv` from the package list in the backup | `mise-python`, `backup` |
+| Python | `conda-remove` | Removes Miniforge, conda and mamba | `backup`, `conda-migrate`, `venvs` |
+| Python | `pipx-remove` | Removes pipx | `conda-migrate` |
+| Python | `uv-only-mise` | uv never downloads its own Pythons | `mise-python`, `venvs`, `conda-migrate` |
+| Python | `launchd-python` | Points launch agents that run a removed Python (or one about to leave the PATH) to the mise Python, in the plist and in the `.py` files next to the script | `mise-python` |
+| Python | `brew-python-unlink` | Unlinks Homebrew Pythons (other formulas still use them) | `mise-python`, `venvs`, `launchd-python` |
+| Python | `python-leftovers` | Python.org framework and empty pyenv | - |
+| PHP and Herd | `herd` | Removes Herd and Valet configuration | - |
+| PHP and Herd | `php-leftovers` | PHP wrapper, orphan `php.ini`, Composer, psysh, phpactor cache | - |
+| PHP and Herd | `hosts-test` | Removes lines with only `.test` names from `/etc/hosts` | `backup` |
+| Docker | `docker-desktop` | Official uninstaller: VM, images, containers, volumes, builders | - |
+| Docker | `docker-leftovers` | `~/.docker`, caches, privileged helpers, broken links | `docker-desktop` |
+| .NET | `dotnet-pkg` | .NET installed by pkg, PATH entries and receipts | - |
+| .NET | `mono-xamarin` | Mono and Xamarin frameworks | - |
+| .NET | `dotnet-brew` | .NET from Homebrew | - |
+| .NET | `dotnet-user` | `~/.dotnet`, NuGet cache, templates | - |
+| iOS simulators | `simulators` | All simulator runtimes, devices and the dyld cache; reports an orphan runtime left in `AssetsV2` (SIP-protected, not removable) | - |
+| Node | `node-globals` | Reinstalls global CLIs from fnm as `mise use -g npm:<package>` | `mise-node` |
+| Node | `fnm` | Removes fnm and its Node versions | `mise-node`, `node-globals` |
+| Node | `node16` | Node 16 from the nodejs.org pkg and its global packages | - |
+| Node | `node-leftovers` | npx cache, pnpm global store, loose bun and Yarn | `mise-node` |
+| Java | `java-mise` | Temurin 21 as the global Java in mise | `mise-config` |
+| Java | `java-old` | Loose JDKs, browser plugin, openjdk@17 and @21 | `java-mise` |
+| General cleanup | `intel-brew` | The abandoned Intel Homebrew in `/usr/local` (only links that point into it) | - |
+| General cleanup | `go-pkg` | Go installed by pkg | - |
+| General cleanup | `podman` | Podman installed by pkg and Podman Desktop login item | - |
+| General cleanup | `pmk` | Empty `/opt/pmk` and its PATH entry | - |
+| General cleanup | `rust-brew` | Rust from Homebrew and rustup toolchains no project pins | - |
+| General cleanup | `broken-links` | Broken links in `/usr/local/bin`, `/usr/local/sbin`, `~/.local/bin` | - |
+| Leftovers of removed apps | `app-leftovers` | Data of apps that are no longer installed: old Electron WhatsApp, Adobe, Logitech Options, Riot, Oracle Java plugin, Fig, Wine, Dart/Flutter, Axway, OpenJFX cache | - |
+| Leftovers of removed apps | `pkg-leftovers` | What pkg-installed apps left after the app was removed: XQuartz (`/opt/X11`, its launch agent, PATH entries, receipt) and Wireshark (PATH entry, receipts, optional `access_bpf` group) | - |
+| Leftovers of removed apps | `launchd-orphans` | Launch agents and daemons whose program is gone, and broken plist links (Apple and Python agents excluded) | - |
+| Fonts and Chrome AI | `nerd-fonts` | Nerd Font families no editor or terminal config uses (cask fonts and non-Nerd fonts stay) | - |
+| Fonts and Chrome AI | `chrome-ai-model` | Installs a system configuration profile that forces the Chrome policy blocking the on-device model download (you approve it in System Settings), then deletes the model | - |
+| Unused tools and databases | `brew-extras` | qemu, mysql-client@8.4, mongocli, SQL Server tools and empty taps | - |
+| Unused tools and databases | `android-tizen` | Android command line tools, `~/.android` (debug keys backed up first) and the Tizen SDK | - |
+| Unused tools and databases | `platformio-qmk` | PlatformIO, QMK and their ARM/AVR toolchains, taps and `~/.platformio` | - |
+| Unused tools and databases | `nvim-mason` | Language servers downloaded by Mason for Neovim | - |
+| Unused tools and databases | `orphan-db-data` | Data of databases whose server is gone (Homebrew MongoDB and PostgreSQL 14, EDB PostgreSQL 9.6), archived to the backup first | - |
+| Project artifacts | `artifacts` | `target` (Rust), `.next` and `node_modules` of projects idle for 60+ days | - |
+| Shell | `shell-rules` | Removes blocks for removed tools from `.zshenv`, `.zprofile`, `.zshrc` | `backup` |
+| Shell | `cf-token` | Moves the Cloudflare token from the shell file to the Keychain | `backup` |
+| Shell | `shell-old-files` | Old shell copies (backed up first, with `sudo install` for root-owned ones) and `.zcompdump*` | `backup` |
+| Maintenance | `dev-caches` | mise cache, extracted crate sources, node-gyp headers, VS Code VSIX cache and obsolete extension versions, when above 100 MB | - |
+| Maintenance | `npm-cache` | npm download cache, when above 100 MB | - |
+| Maintenance | `uv-cache` | `uv cache clean`, when above 100 MB | - |
+| Maintenance | `brew-cleanup` | Orphan dependencies (one item each) and `brew cleanup --prune=all` | - |
+| Maintenance | `xcode-derived` | Xcode DerivedData | - |
+| Maintenance | `cowork` | Turns off the Claude Cowork VM and deletes `vm_bundles` | - |
+| Maintenance | `apple-intelligence` | Runs the third-party RemoveMacAI to turn off Apple Intelligence | - |
+
+</details>
+
+## Safety
+
+- **Nothing runs without confirmation.** Before running, the step detects again and acts only
+  on the selected items that still exist.
+- **Removal.** Paths in your home are removed in Python without following symlinks and refusing
+  mount points. Paths outside your home use `sudo /bin/rm -rfx`, which does not cross
+  filesystems. Installer receipts are forgotten with `pkgutil --forget`.
+- **Venvs and conda.** A venv is renamed, rebuilt and only deleted after the new one installs
+  every package; if anything fails, the old one comes back. Package lists are saved to the backup.
+- **Shell files.** Each rule removes an exact block, and only when its target no longer exists.
+  Personal lines are not touched. The new file must pass `zsh -n`, a copy of the previous version
+  is kept, and the write is atomic. Diffs are shown with secrets masked.
+- **Secrets.** The Cloudflare token goes to the Keychain through standard input, so it never
+  appears in the process list. It is never printed, never written to the history, and variables
+  whose name looks like a secret are masked in every displayed command.
+- **Never touched:** Xcode, `/usr/bin/python3`, `~/.claude`, `~/.codex`, `~/.ollama`, `~/.npmrc`,
+  aws-cli, heroku, and any project source code. Git-tracked folders are never treated as
+  build artifacts.
+
+## Files
+
+| Path | Content |
+| --- | --- |
+| `~/.local/state/free-my-mac/history.jsonl` | Run history (mode 600, append-only) |
+| `~/bkp/free-my-mac/YYYY-MM-DD/` | Backups and exports (mode 700) |
+
+The backup of shell files may contain secrets that were in them (such as the Cloudflare token
+before `cf-token`). Delete old backups when you no longer need them.
+
+## Development
 
 ```sh
-sh free-my-mac.sh --system --protect ~/Projects/my-agent/artifacts --protect ~/models
+/usr/bin/python3 -m unittest discover -s tests
 ```
 
-`--protect` can be repeated. The .claude, .codex, .cursor, .ollama,
-.cache/huggingface roots and known local Claude sessions are protected by default.
-Names containing sketchpad are also protected. Add your actual artifact roots:
-there is no universal way to identify agent-generated files. Protections also
-block deletion of ancestor directories containing protected data.
+| Path | Role |
+| --- | --- |
+| `free_my_mac.py` | Command line and dispatch |
+| `fmm/core.py` | Model (`Step`, `Item`, `Detection`, `Op`), `Context`, state resolution |
+| `fmm/runner.py` | Revalidation, execution, sudo, history |
+| `fmm/text.py`, `fmm/ui.py` | Text modes and curses interface |
+| `fmm/paths.py` | Declarative `PathsStep` (paths, receipts, formulas, casks, taps) |
+| `fmm/shellfiles.py` | Shell file rules and Keychain |
+| `fmm/pyenvs.py` | mise Pythons, venvs and conda helpers |
+| `fmm/steps/` | The catalog, one module per group |
 
-## Preview and execute a plan
+Tests run in a temporary home and root (`tests/helpers.py`): commands are answered by fakes and
+nothing touches the real machine.
 
-Close the managers and processes associated with the selected projects. Execution
-requires the same --projects, --days, and --protect options used to create the plan.
+### Adding a step
 
-```sh
-sh free-my-mac.sh --plan free-my-mac-plan-NUMBER.json --days 60
+Most removals are declarative. Create the class in the module of its group and add it to that
+module's `STEPS` list:
+
+```python
+class Podman(PathsStep):
+    id = 'podman'
+    group = 'general'
+    title = 'Remove Podman'
+    targets = ('/opt/podman', '/etc/paths.d/podman-pkg', '~/.local/share/containers')
+    receipts = r'^com\.redhat\.podman'
+    what = 'Deletes Podman installed by pkg ...'
+    why = 'Containers now run on a remote server.'
+    consequences = 'The podman command goes away.'
+    undo = 'Reinstall from the Podman website.'
 ```
 
-The command above only validates/previews. To execute explicitly:
-
-```sh
-sh free-my-mac.sh --plan free-my-mac-plan-NUMBER.json --days 60 --apply
-```
-
-You must type the exact phrase `APAGAR ITENS` in an interactive terminal. The
-executor does not accept root. It validates targets, ownership, protections,
-identity, and tree metadata; changes since planning require a new plan. It does
-not accept arbitrary commands in the JSON. A JSONL log records the start, result,
-free space, and partial failures. Deletion is permanent, without a rollback
-promise. Downloads/reinstallation may be required; manual changes inside
-node_modules will be lost. Do not run while processes are writing to the targets:
-validation is neither a transactional filesystem lock nor a complete detector of
-active processes.
-
-node_modules only becomes a candidate when source files are old, a lockfile exists,
-and inspection completes without errors. Dependencies known to be tracked in Git
-are blocked. This indicates inactivity, not proven disuse: check whether the
-project is needed offline and whether dependencies can be restored. Monorepos
-and workspaces require review.
-
-## Explicit Cowork maintenance
-
-```sh
-sh free-my-mac.sh --cowork status
-sh free-my-mac.sh --cowork disable
-```
-
-Status and preview do not change anything. To apply after closing Claude Desktop,
-run `sh free-my-mac.sh --cowork disable --apply`. This requires interactive
-confirmation, creates a private JSON backup, and restricts removal to vm_bundles;
-sessions and MCP settings are preserved. The local preference's behavior depends
-on the version. See the [Cowork guide (Portuguese)](docs/guia-cowork.md) for
-limitations, reversal, and validation.
-
-## Reports and storage growth
-
-```sh
-sh free-my-mac.sh --report --system --no-probes
-sh free-my-mac.sh --json --system --measure --save inventory-1.json
-sh free-my-mac.sh --json --system --measure --save inventory-2.json
-sh free-my-mac.sh --compare inventory-1.json inventory-2.json
-```
-
-`--no-probes` skips manager and Docker queries but still reads local app metadata
-through macOS plutil. Comparison includes only paths measured in both reports;
-unknown values are not treated as zero. Remote Docker endpoints and overrides are
-blocked; daemons are not started. A Unix socket may forward to another host;
-check the displayed endpoint before confirming any prune operation.
-
-The legacy browser remains available:
-
-```sh
-sh free-my-mac.sh --browse --path ~/Library
-```
-
-## Tests
-
-```sh
-python3 -m unittest discover -s tests -v
-sh -n free-my-mac.sh
-```
-
-Deletion tests use temporary directories exclusively. No sudo is required.
-No real user data was cleaned during development.
+For anything else, subclass `Step` and implement `detect(ctx) -> Detection` (read-only, using
+`ctx.query`, `ctx.user`, `ctx.sys`) and `ops(ctx, items) -> List[Op]` (each `Op` has a label, the
+command shown to the user and either an `argv` or a Python `func`). Declare `requires` when the
+step only makes sense after another one.
